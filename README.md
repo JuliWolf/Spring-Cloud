@@ -111,3 +111,114 @@ spring.config.import=optional:configserver:http://localhost:8888
 10. Запустить приложение
 11. По адресу `http://localhost:8080/limits` должен прийти ответ с данными из файла, созданного в пункте (II.3)
 
+
+# PART 2 (создание 2х микросервисов, которые будут общаться между собой по Rest)
+
+## Создание и настройка проекта currency-exchange-service (IV)
+
+1. Создать проект с помощью https://start.spring.io/
+2. Выбрать в Dependencies 
+ - Spring Boot Devtools
+ - Spring Web
+ - Spring Boot Actuator
+ - Config Client
+
+3. В файле `application.properties` настроить название проекта и порт
+```
+spring.application.name=currency-exchange
+server.port=8000
+```
+
+4. Создать Entity класс `CurrencyExchange` со следующими полями, добавить геттеры и сеттеры и конструктор
+```
+id
+from
+to
+conversionMultiple
+environment
+```
+
+5. Создать Контроллер для получения данных по адресу `currency-exchange/from/{from}/to/{to}`
+
+6. Можно создать массив заглушку для возврата данных или настроить подключение к базе данных
+
+
+## Создание и настройка проекта currency-conversion (V)
+
+1. Создать проект с помощью https://start.spring.io/
+2. Выбрать в Dependencies 
+ - Spring Boot Devtools
+ - Spring Web
+ - Spring Boot Actuator
+ - Config Client
+
+3. В файле `application.properties` настроить название проекта и порт
+```
+spring.application.name=currency-conversion
+server.port=8100
+```
+
+4. Создать Entity класс CurrencyConvertion со следующими полями, создать геттеры и сеттеры и конструктор
+```
+id
+from
+to
+quantity
+conversionMultiple
+totalCalculatedAmount
+environment
+```
+
+5. Создать Контроллер для получение данных по адресу `currency-conversion/from/{from}/to/{to}/quantity/{quantity}`
+
+6. Контроллер будет обращаться через RestTemplate к проекту IV по адресу, указанному в пункте IV.5 и получать в ответ `ResponseEntity<CurrencyConversion> responseEntity`
+```
+ResponseEntity<CurrencyConversion> responseEntity = new RestTemplate()
+        .getForEntity(
+          "http://localhost:8000/currency-exchange/from/{from}/to/{to}",
+          CurrencyConversion.class,
+          uriVariables
+      );
+```
+	
+7. Создаем новый эксземпляр класса CurrencyConversion с полученными данными
+```
+    return new CurrencyConversion(
+        currencyConversion.getId(),
+        from,
+        to,
+        quantity,
+        currencyConversion.getConversionMultiple(),
+        quantity.multiply(currencyConversion.getConversionMultiple()),
+        currencyConversion.getEnvironment() + " rest"
+    );	
+```
+
+*** Заменить `new RestTemplate()` на `CurrencyExchangeProxy` ***
+
+8. Добавить `dependency` в `pom.xml`
+```
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-openfeign</artifactId>
+		</dependency>
+```
+
+9. Создать proxy интерфейс
+```
+@FeignClient(name="currency-exchange", url="localhost:8000")
+public interface CurrencyExchangeProxy {
+
+  @GetMapping("currency-exchange/from/{from}/to/{to}")
+  public CurrencyConversion retrieveExchangeValue (
+      @PathVariable String from,
+      @PathVariable String to
+  );
+}	
+```
+
+10. В Контроллере `CurrencyConversionController` получать данные из currency-exchange сервиса через прокси
+```
+CurrencyConversion currencyConversion = proxy.retrieveExchangeValue(from, to);	
+``` 
+
