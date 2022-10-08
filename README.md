@@ -1,4 +1,4 @@
-Создание и настройка проекта Limits (I)
+***Создание и настройка проекта Limits (I)***
 
 1. Создать проект с помощью https://start.spring.io/
 2. Выбрать в Dependencies 
@@ -24,20 +24,20 @@
 }
 ```
 
-Создание и настройка локального гит репозитория (II)
+***Создание и настройка локального гит репозитория (II)***
 
 1. Создать папку на устройстве
 2. В созданной папке создать файл `limits-service.properties`
 3. Перенести настройки из проекта I в созданный файл
 ```
-	limits-service.minimum=3
-	limits-service.maximum=997
+limits-service.minimum=3
+limits-service.maximum=997
 ```
 4. В созданной папке выполнить команду `git init`
 5. Выполнить команду `git commit -m "{commit message}"`
 
 
-Создание и настройка проекта Spring cloud (III)
+***Создание и настройка проекта Spring cloud (III)***
 
 1. Создать проект с помощью https://start.spring.io/
 2. Выбрать в Dependencies 
@@ -77,22 +77,22 @@ public class SpringCloudConfigServerApplication {
 8. По адресу `http://localhost:8888/limits-service/default` должен вернуться json ответ
 ```
 {
-name: "limits-service",
-profiles: [
-"default"
-],
-label: null,
-version: "d367cb98aa71e705664eef4edf211e060fcd36c9",
-state: null,
-propertySources: [
-{
-name: "file:///home/juliwolf/Developing/Projects/Java/Spring-Cloud/git-localconfig-repo/limits-service.properties",
-source: {
-limits-service.minimum: "4",
-limits-service.maximum: "996"
-}
-}
-]
+	name: "limits-service",
+	profiles: [
+		"default"
+	],
+	label: null,
+	version: "d367cb98aa71e705664eef4edf211e060fcd36c9",
+	state: null,
+	propertySources: [
+		{
+			name: "file:///home/juliwolf/Developing/Projects/Java/Spring-Cloud/git-localconfig-repo/limits-service.properties",
+			source: {
+				limits-service.minimum: "4",
+				limits-service.maximum: "996"
+			}
+		}
+	]
 }
 ```
 
