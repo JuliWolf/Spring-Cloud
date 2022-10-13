@@ -222,3 +222,42 @@ public interface CurrencyExchangeProxy {
 CurrencyConversion currencyConversion = proxy.retrieveExchangeValue(from, to);	
 ``` 
 
+# PART 3 (создание naming-server для объединения микросервисов)
+
+## Создание и настройка проекта naming-server (VI)
+
+1. Создать проект с помощью https://start.spring.io/
+2. Выбрать в Dependencies 
+ - Spring Boot Devtools
+ - Spring Boot Actuator
+ - Config Client
+ - Eureka Server
+ 
+3. В файле `application.properties` настроить название проекта и порт
+```
+spring.application.name=naming-server
+server.port=8761
+```
+
+4. Запустить приложение и проверить адрес `http://localhost:8761`
+
+5. В проекте `currency-conversion (V)` в файле `application.properties` добавить следющие настройки и запустить проект 
+```
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+```
+
+6. В проекте `currency-exchange-service (IV)` в файле `application.properties` добавить следющие настройки и запустить проект 
+```
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+```
+
+7. На странице `http://localhost:8761` в блоке `Instances currently registered with Eureka` должны появиться зарегестрированные сервисы
+
+8. В проекте `currency-exchange-service (IV)` в файле `CurrencyExchangeProxy` убрать url и перезапустить проект
+```
+@FeignClient(name="currency-exchange")
+```
+
+9. Запустить проект `currency-conversion (V)` на порте 8001
+
+10. На странице `http://localhost:8100/currency-conversion/from/USD/to/INR/quantity/10` в поле `environment` порт будет меняться при перезагрузке страницы
