@@ -383,3 +383,120 @@ public class LoggingFilter implements GlobalFilter {
     return chain.filter(exchange);
   }	
 ```
+
+# PART 5 (Настройка сервиса переподключения)
+
+1. Подключить зависимости для сервиса currency-exchange  (IV)
+```
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-aop</artifactId>
+	</dependency>
+
+	<dependency>
+		<groupId>io.github.resilience4j</groupId>
+		<artifactId>resilience4j-spring-boot2</artifactId>
+	</dependency>
+```
+	
+2. Создать контроллер `CircuitBreakerController` с одним эндпоинтом, который будет всегда возвращать ошибку
+```
+@RestController
+public class CircuitBreakerController {
+
+  @GetMapping("/sample-api")
+  public String sampleApi () {
+    ResponseEntity<String> forEntity = new RestTemplate().getForEntity("http://localhost:8080/some-dummy-url", String.class);
+
+    return forEntity.getBody();
+  }
+}
+```
+
+3. Подключить функцию переподключения к эндпоинту прежде чем вернуть ошибку 
+```
+@RestController
+public class CircuitBreakerController {
+
+  @GetMapping("/sample-api")
+  @Retry(name="default")
+  public String sampleApi () {
+    ResponseEntity<String> forEntity = new RestTemplate().getForEntity("http://localhost:8080/some-dummy-url", String.class);
+
+    return forEntity.getBody();
+  }
+}
+```
+Теперь, прежде чем вернуть ошибку метод будет вызываться 3 раза и только потом вернется ошибка запроса
+
+4. Настройка количества запросов прежде чем вернуть ошибку.
+В файле проекта `application.properties`
+```
+resilience4j.retry.instances.sample-api.max-attempts=5	
+```
+
+В файле класса `CircuitBreakerController` заменить значения свойства `name` 
+```
+@RestController
+public class CircuitBreakerController {
+
+  @GetMapping("/sample-api")
+  @Retry(name="sample-api")
+  public String sampleApi () {
+    ResponseEntity<String> forEntity = new RestTemplate().getForEntity("http://localhost:8080/some-dummy-url", String.class);
+
+    return forEntity.getBody();
+  }
+}	
+```
+	
+Теперь будет проихсходить 5 запросов, прежде чем вернутся ошибка
+
+5. Настройка времени ожидания между запросами
+В файле проекта `application.properties`
+```
+resilience4j.retry.instances.sample-api.wait-duration=1s	
+```
+
+6. Настройка callback метода, в случае если метод все 5 раз возвращает ошибку
+```
+@RestController
+public class CircuitBreakerController {
+
+  @GetMapping("/sample-api")
+  @Retry(name="sample-api", fallbackMethod = "hardcodedResponse")
+  public String sampleApi () {
+    ResponseEntity<String> forEntity = new RestTemplate().getForEntity("http://localhost:8080/some-dummy-url", String.class);
+
+    return forEntity.getBody();
+  }
+	
+  public String hardcodedResponse (Exception exc) {
+    return "fallback-response";
+  }
+}	
+```
+	
+Теперь после 5 запросов будет возвращаться не ошибка, а строка `fallback-response`
+	
+7. Настройка `CircuitBreaker`
+```
+@RestController
+public class CircuitBreakerController {
+
+  @GetMapping("/sample-api")
+  @CircuitBreaker(name="default", fallbackMethod = "hardcodedResponse")
+  public String sampleApi () {
+    ResponseEntity<String> forEntity = new RestTemplate().getForEntity("http://localhost:8080/some-dummy-url", String.class);
+
+    return forEntity.getBody();
+  }
+	
+  public String hardcodedResponse (Exception exc) {
+    return "fallback-response";
+  }
+}
+```
+
+При большом количестве запросов `CircuitBreaker` фиксирует, что метод возвращает ошибку в 100% случаев, после чего уходит в состояние ожидания. По истечении некоторого времени `CircuitBreaker` снова открывает эндпоин для запросов и снова собирает статистику по количеству успешных ответов. Если все ответы вернули ошибку, то эндпоинт снова становится недоступным. Больше информации тут https://sysout.ru/otkazoustojchivost-mikroservisov-shablon-circuit-breaker/
+
