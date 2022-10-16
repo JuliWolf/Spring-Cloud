@@ -362,3 +362,24 @@ http://localhost:8765/currency-exchange/from/USD/to/INR
 http://localhost:8765/currency-conversion-feign/from/USD/to/INR/quantity/10
 http://localhost:8765/currency-conversion-new/from/USD/to/INR/quantity/10
 ```
+
+## Настройка api-gateway логгера (VIII)
+	
+1. Создать класс `LoggingFilter`
+```
+@Component
+public class LoggingFilter implements GlobalFilter {
+
+  private Logger logger = LoggerFactory.getLogger(LoggingFilter.class);
+}	
+```
+	
+2. Реализовать метод `filter`, где после выполнения логирования запрос все данные запроса отправляются дальше без изменений
+```
+  @Override
+  public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    logger.info("Path of the request received -> {}", exchange.getRequest().getPath());
+
+    return chain.filter(exchange);
+  }	
+```
