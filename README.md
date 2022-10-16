@@ -500,3 +500,40 @@ public class CircuitBreakerController {
 
 При большом количестве запросов `CircuitBreaker` фиксирует, что метод возвращает ошибку в 100% случаев, после чего уходит в состояние ожидания. По истечении некоторого времени `CircuitBreaker` снова открывает эндпоин для запросов и снова собирает статистику по количеству успешных ответов. Если все ответы вернули ошибку, то эндпоинт снова становится недоступным. Больше информации тут https://sysout.ru/otkazoustojchivost-mikroservisov-shablon-circuit-breaker/
 
+8. Настройка `RateLimiter`
+```
+@RestController
+public class CircuitBreakerController {
+
+  @GetMapping("/sample-api")
+  @RateLimiter(name="default")
+  // 10s => 10000 calls to the sample api
+  public String sampleApi () {
+    logger.info("Sample Api call received");
+
+    return "sample-api";
+  }
+
+}	
+```
+
+`RateLimiter` позволяет контролировать поток вызовов к эндпоинту. Например, за 10 секунд не больше 10000 запросов к эндпоинту
+
+ 
+9. Настройка `Bulkhead`
+```
+@RestController
+public class CircuitBreakerController {
+
+  @GetMapping("/sample-api")
+  @Bulkhead(name="sample-api")
+  public String sampleApi () {
+    logger.info("Sample Api call received");
+
+    return "sample-api";
+  }
+
+}	
+```
+
+`Bulkhead` позволяет настроить максимальное количество запросов в один момент
