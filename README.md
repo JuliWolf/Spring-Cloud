@@ -261,3 +261,104 @@ eureka.client.service-url.defaultZone=http://localhost:8761/eureka
 9. Запустить проект `currency-conversion (V)` на порте 8001
 
 10. На странице `http://localhost:8100/currency-conversion/from/USD/to/INR/quantity/10` в поле `environment` порт будет меняться при перезагрузке страницы
+
+
+# PART 4 (создание api-gateway для управления эндпоинтами)
+
+## Создание и настройка проекта api-gateway (VII)
+
+1. Создать проект с помощью https://start.spring.io/
+2. Выбрать в Dependencies 
+ - Spring Boot Devtools
+ - Spring Boot Actuator
+ - Config Client
+ - Eureka Discovery Client
+ - Gateway
+ 
+3. В файле `application.properties` настроить название проекта и порт
+```
+spring.application.name=api-gateway
+server.port=8765
+```
+
+4. В файле `application.properties` настроить ссылку на eureka сервер
+```
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+```
+
+5. Создать класс конфигурационный класс `ApiGatewayConfiguration` для управления эндпоинтами
+```
+@Configuration
+public class ApiGatewayConfiguration {
+
+  @Bean
+  public RouteLocator gatewayRouter (RouteLocatorBuilder builder) {
+    return builder.routes().build();
+  }
+}
+```
+
+6. Запустить приложение и проверить работоспособность по ссылке `http://localhost:8765/CURRENCY-EXCHANGE/currency-exchange/from/USD/to/INR`
+
+7. Чтобы изменить адрес на нижний регистр, необходимо в файле `application.properties` добавить следующие настройки
+```
+spring.cloud.gateway.discovery.locator.enabled=true
+spring.cloud.gateway.discovery.locator.lower-case-service-id=true
+```
+
+8. В запрос можно добавить свои заголовки
+```
+@Configuration
+public class ApiGatewayConfiguration {
+
+  @Bean
+  public RouteLocator gatewayRouter (RouteLocatorBuilder builder) {
+    Function<PredicateSpec, Buildable<Route>> routerFunction
+        = p -> p.path("/get")
+                .filters(filter -> filter
+                    .addRequestHeader("MyHeader", "MyURI")
+                    .addRequestParameter("Param", "MyValue")
+                )
+                .uri("http://httpbin.org:80");
+
+    return builder.routes()
+        .route(routerFunction)
+        .build();
+  }
+}
+```
+
+9. Точная настройка эндпоинтов
+```
+@Configuration
+public class ApiGatewayConfiguration {
+
+  @Bean
+  public RouteLocator gatewayRouter (RouteLocatorBuilder builder) {
+    Function<PredicateSpec, Buildable<Route>> routerFunction
+        = p -> p.path("/get")
+                .filters(filter -> filter
+                    .addRequestHeader("MyHeader", "MyURI")
+                    .addRequestParameter("Param", "MyValue")
+                )
+                .uri("http://httpbin.org:80");
+
+    return builder.routes()
+        .route(routerFunction)
+        .route(p -> p.path("/currency-exchange/**").uri("lb://currency-exchange"))
+        .route(p -> p.path("/currency-conversion/**").uri("lb://currency-conversion"))
+        .route(p -> p.path("/currency-conversion-feign/**").uri("lb://currency-conversion"))
+        .route(p -> p.path("/currency-conversion-new/**")
+            .filters(f -> f.rewritePath("/currency-conversion-new/", "/currency-conversion-feign/"))
+            .uri("lb://currency-conversion"))
+        .build();
+  }
+}
+```
+
+Теперь `currency-exchange` сервис и `currency-conversion` сервисы доступны по следующим адресам
+```
+http://localhost:8765/currency-exchange/from/USD/to/INR
+http://localhost:8765/currency-conversion-feign/from/USD/to/INR/quantity/10
+http://localhost:8765/currency-conversion-new/from/USD/to/INR/quantity/10
+```
