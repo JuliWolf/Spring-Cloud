@@ -23,3 +23,9 @@
 /examination/history/history.iml
 /examination/history/targer/
 /examination/history/.mvn/
+/examination/discovery-microservice/.mvn/
+/examination/discovery-microservice/discovery-microservice.iml
+/examination/discovery-microservice/target
+/examination/examinator/examinator.iml
+/examination/examinator/.mvn/
+/examination/examinator/target/

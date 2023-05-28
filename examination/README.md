@@ -90,3 +90,136 @@ public class HistoryQuestionsController {
   }
 }
 ```
+
+# Discovery microservice 
+- Сервис для управления микросервисами
+
+- Основной зависимостью сервиса будет являться eureka
+```
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+</dependency>
+```
+
+## Активации Eureka
+- Добавляем аннотацию `@EnableEurekaServer` над основным классом приложения
+```
+@SpringBootApplication
+@EnableEurekaServer
+public class DiscoveryMicroserviceApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(DiscoveryMicroserviceApplication.class, args);
+  }
+
+}
+```
+
+- Добавляем настройки в application.properties</br>
+По дефолту все микросервисы будут искать eureka на порту 8761
+```
+server.port=8761
+eureka.client.register-with-eureka=false
+eureka.server.enable-self-preservation=false
+eureka.client.fetch-registry=false
+```
+
+# Подключение клиентов к eureka
+
+Для автоматического подключения необходимо добавить зависимость eureka-client
+```
+<dependency>
+  <groupId>org.springframework.cloud</groupId>
+  <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+</dependency>
+```
+
+- Для указания названия приложения необходимо добавить spring.application.name в `application.properties`
+```
+spring.application.name=mathematics
+```
+
+# Examinator
+
+Создаем еще 1 клиент
+
+## Класс экзамена
+```
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class Exam {
+  private String title;
+  private List<Section> sections;
+}
+```
+
+## Класс вопроса
+```
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Question {
+  private String question;
+  private String answer;
+}
+```
+
+## Класс секции экзамена
+```
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class Section {
+  private List<Question> questions;
+}
+```
+
+## Контроллер
+
+- `DiscoveryClient` это бин, который нам добавляет eureka при подключении либы клиента 
+- `RestTemplate` по заданному адресу получает данные из других микросервисов
+
+```
+@RestController
+public class ExamController {
+
+  @Autowired
+  private RestTemplate restTemplate;
+
+  @Autowired
+  private DiscoveryClient discoveryClient;
+
+  @PostMapping("/exam")
+  public Exam getExam (@RequestBody Map<String, Integer> spec) {
+    List<Section> sections = spec.entrySet().stream()
+        .map(this::getUrl)
+        .map(url -> restTemplate.getForObject(url, Question[].class))
+        .map(Arrays::asList)
+        .map(Section::new)
+        .collect(Collectors.toList());
+
+    return Exam.builder()
+        .title("EXAM")
+        .sections(sections)
+        .build();
+  }
+
+  private String getUrl(Map.Entry<String, Integer> entry) {
+    return "http://"+entry.getKey()+"/api/questions?amount="+entry.getValue();
+  }
+}
+```
+
+## Добавляем `@LoadBalanced` для балансировки нескольких инстансов
+```
+  @Bean
+  @LoadBalanced
+  public RestTemplate restTemplate (RestTemplateBuilder restTemplateBuilder) {
+    return restTemplateBuilder.build();
+  }
+```
